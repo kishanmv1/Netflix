@@ -1,0 +1,80 @@
+pipeline {
+    agent any
+    tools{
+        maven 'maven'
+        jdk 'jdk17'
+        nodejs 'NodeJS-21'
+    }
+    environment{
+        scanner_home= tool 'sonar-scanner'
+    }
+
+    stages {
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/kishanmv1/Netflix.git'
+            }
+        }
+        stage('Compile') {
+            steps {
+                sh "mvn compile"
+            }
+        }
+        stage('Tests') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+        stage('Sonarqube Analysis') {
+            steps {
+                withSonarQubeEnv('sonar_qube'){
+                    sh ''' $scanner_home/bin/sonar-scanner -Dsonar.projectName=netflix \
+                    -Dsonar.projectKey=netflix -Dsonar.java.binaries=. '''
+                }
+                
+            }
+        }
+        stage('Owasp Scan') {
+            steps {
+                dependencyCheck additionalArguments: ' --scan . ', odcInstallation: 'owasp'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }    
+        }        
+         stage('Build Application') {
+            steps {
+                sh 'mvn package'
+            }   
+         }
+         stage('Build Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker_cred', toolName: 'docker') {
+                        sh "docker build -t netflix:latestv1 ."
+                    }    
+                    
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                script{
+                    withDockerRegistry(credentialsId: 'docker_cred', toolName: 'docker') {
+                        sh "docker tag netflix:latest kishanmv/netflix:latestv1"
+                        sh "DOCKER_CLIENT_TIMEOUT=300 docker push kishanmv/netflix:latestv1"
+                        sh "docker push kishanmv/netflix:latestv1"
+                    }    
+                }
+            }
+        }
+         stage('Run Docker Container') {
+            steps {
+                script{
+                    withDockerRegistry(credentialsId: 'docker_cred', toolName: 'docker') {
+                        sh "docker run -d -p 8000:8000 kishanmv/netflix:latestv1"
+                    }
+                }    
+                
+            }
+        }    
+    }
+}
