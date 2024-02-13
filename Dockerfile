@@ -1,4 +1,5 @@
-FROM openjdk:8u151-jdk-alpine3.7
+FROM openjdk:11-jre
+
   
 EXPOSE 8000
  
