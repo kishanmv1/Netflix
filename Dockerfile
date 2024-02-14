@@ -1,4 +1,4 @@
-FROM openjdk:11-jre
+FROM node:14
 
   
 EXPOSE 8000
@@ -9,4 +9,4 @@ COPY target/netflix-0.0.1-SNAPSHOT.jar $APP_HOME/app.jar
 
 WORKDIR $APP_HOME
 
-ENTRYPOINT exec java -jar app.jar /bin/bash
+ENTRYPOINT exec node -jar app.jar /bin/bash
